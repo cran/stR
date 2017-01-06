@@ -5,7 +5,7 @@
 \title{STR decomposition}
 \usage{
 STRmodel(data, predictors = NULL, strDesign = NULL, lambdas = NULL,
-  confidence = NULL, solver = c("MatrixModels", "cholesky"),
+  confidence = NULL, solver = c("Matrix", "cholesky"),
   reportDimensionsOnly = FALSE, trace = FALSE)
 }
 \arguments{
@@ -65,9 +65,8 @@ exact model parameters.}
 It must be greater than 0 and less than 1.
 If \code{NULL}, no confidence intervals are produced.}
 
-\item{solver}{A vector with two string values. Possible combinations are:
-c("MatrixModels", "cholesky") (default), c("MatrixModels", "qr"),
-c("Matrix", "cholesky"), c("Matrix", "qr").
+\item{solver}{A vector with two string values. The only supported combinations are:
+c("Matrix", "cholesky") (default), and c("Matrix", "qr").
 The parameter is used to specify a particular library
 and method to solve the minimisation problem during STR decompositon.}
 

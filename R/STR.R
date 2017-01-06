@@ -6,8 +6,6 @@
 #' @importFrom stats qnorm
 #' @importFrom stats quantile
 #' @importFrom stats time
-# library(MatrixModels)
-# library(R.matlab)
 # library(doMC)
 # registerDoMC(8) #Number of CPU cores
 
@@ -430,17 +428,17 @@ predictorRegulariser = cmpfun(function(predictor, norm = 2, lambdas0or1 = FALSE)
   l1 = l2 = l3 = 0
   result = Matrix(data = 0, nrow = 0, ncol = max(nKnots, 1) * max(nSKnots-1, 1)) # Empty matrix,
   # it has 0 rows when l1 = l2 = l3 = 0. The only information it passes in this case is the number of columns.
-  if(predictor$lambdas[1] > 0) {
+  if(predictor$lambdas[1] != 0) {
     reg = ifelse(lambdas0or1, 1, predictor$lambdas[1]) * ttRegulariser(predictor, norm)
     l1 = dim(reg)[1]
     result = rBind(result, reg)
   }
-  if(predictor$lambdas[2] > 0) {
+  if(predictor$lambdas[2] != 0) {
     reg = ifelse(lambdas0or1, 1, predictor$lambdas[2]) * ssRegulariser(predictor, norm)
     l2 = dim(reg)[1]
     result = rBind(result, reg)
   }
-  if(predictor$lambdas[3] > 0) {
+  if(predictor$lambdas[3] != 0) {
     reg = ifelse(lambdas0or1, 1, predictor$lambdas[3]) * stRegulariser(predictor, norm)
     l3 = dim(reg)[1]
     result = rBind(result, reg)
@@ -549,58 +547,6 @@ lambdaMatrix = function(lambdas, seats)
   return(Diagonal(x = v))
 }
 
-# Solves system || y - Xb || -> min against b.
-# If type == "Matrix" C must be provided. C must be "top" part of matrix X and length(y) == nrow(C).
-# Effectively it solves || y_ext - Xb || -> min against b, where y_ext = c(y, rep(0, <to match X>)).
-lmSolver = function(X, y, C = NULL, type = "MatrixModels", method = "cholesky")
-{
-  if(type == "Matrix") {
-    if(method == "cholesky") {
-      # tm = system.time({
-        XtX = crossprod(X)
-        Cty = crossprod(C, y)
-        b = solve(XtX, Cty)
-      # }); print(tm)
-      return(b)
-    }
-    if(method == "qr") {
-      if(length(y) > nrow(X)) stop("y is too long in lmSolver...")
-      y = c(y, rep(0, nrow(X) - length(y)))
-      # tm = system.time({
-        b = solve(qr(X), y)
-      # }); print(tm)
-      return(b)
-    }
-    stop("Unknown method in lmSolver...")
-  }
-  if(type == "MatrixModels") {
-    if(length(y) > nrow(X)) stop("y is too long in lmSolver...")
-    y = c(y, rep(0, nrow(X) - length(y)))
-    # tm = system.time({
-      # b = MatrixModels:::lm.fit.sparse(X, y, method = method)
-      f = get0('lm.fit.sparse', mode='function', envir = asNamespace('MatrixModels'))
-      if(is.null(f)) stop('solver "MatrixModels" cannot be used since MatrixModels:::lm.fit.sparse is not found')
-      b = do.call(f, list(x = X, y = y, method = method))
-    # }); print(tm)
-    if(method == "qr") {
-      if(class(b) != "numeric") stop('solver "MatrixModels" with method "qr" cannot be used since interface of MatrixModels:::lm.fit.sparse has changed')
-      return(b)
-    }
-    if(method == "cholesky") {
-      if(class(b$coef) != "numeric") stop('solver "MatrixModels" with method "cholesky" cannot be used since interface of MatrixModels:::lm.fit.sparse has changed')
-      return(b$coef)
-    }
-    stop("Unknown method in lmSolver...")
-  }
-  # if(type == "SaveForMatlab") {
-  #   cat("\nExporting data to files...")
-  #   writeMM(X, "X.mtx")
-  #   writeMat("y.mat", y = as.vector(y))
-  #   stop("Data is saved, stopping further execution...")
-  # }
-  stop("Unknown type in lmSolver...")
-}
-
 # Returns covariance (diagonal) matrix of errors/residuals.
 getISigma = function(resid, firstLength, seats)
 {
@@ -672,24 +618,10 @@ getISigma = function(resid, firstLength, seats)
 
 STRmodel = function(data, predictors = NULL, strDesign = NULL, lambdas = NULL,
                confidence = NULL, # confidence = c(0.8, 0.95)
-               solver = c("MatrixModels", "cholesky"),
+               solver = c("Matrix", "cholesky"),
                reportDimensionsOnly = FALSE,
                trace = FALSE)
 {
-  # Checking if interface of MatrixModels:::lm.fit.sparse has not changed
-  if(solver[1] == "MatrixModels") {
-    f = get0('lm.fit.sparse', mode='function', envir = asNamespace('MatrixModels'))
-    if(is.null(f)) {
-      warning('solver c("MatrixModels", ...) cannot be used since MatrixModels:::lm.fit.sparse is not found. Using solver c("Matrix", "cholesky") instead.')
-      solver = c("Matrix", "cholesky")
-    } else {
-      argNames = c("x", "y", "w", "offset", "method", "tol", "singular.ok", "order", "transpose")
-      if(length(formals(f)) != length(argNames) || !all(names(formals(f)) == argNames)) {
-        warning('solver c("MatrixModels", ...) cannot be used since MatrixModels:::lm.fit.sparse is not found. Using solver c("Matrix", "cholesky") instead.')
-        solver = c("Matrix", "cholesky")
-      }
-    }
-  }
   if(is.null(strDesign) && !is.null(predictors)) {
     strDesign = STRDesign(predictors, norm = 2)
   }
@@ -706,7 +638,7 @@ STRmodel = function(data, predictors = NULL, strDesign = NULL, lambdas = NULL,
   if(trace) {cat("\nDesign matrix dimensions: "); cat(dim(design)); cat("\n")}
   if(reportDimensionsOnly) return(NULL)
 
-  noNA = !is.na(data)
+  noNA = !is.na(as.vector(data))
   y = as.vector(data)[noNA]
   X = design[c(noNA, rep(TRUE, nrow(design) - length(noNA))),] # noNA should be extended with TRUE values to keep rows resposible for regularisation
   if(trace) {cat("X matrix (NA removed) dimensions: "); cat(dim(X)); cat("\n")}
@@ -714,7 +646,7 @@ STRmodel = function(data, predictors = NULL, strDesign = NULL, lambdas = NULL,
   CC = cm$matrix
 
   if(is.null(confidence)) {
-    coef = lmSolver(X, y, C, type = solver[1], method = solver[2])
+    coef = lmSolver(X, y, type = solver[1], method = solver[2], trace = trace)
     dataHat = CC %*% coef
 
     if(is.null(predictors)) predictors = strDesign$predictors
@@ -751,24 +683,48 @@ STRmodel = function(data, predictors = NULL, strDesign = NULL, lambdas = NULL,
   }
 }
 
-nFoldSTRCV = function(n, trainData, fcastData, trainC, fcastC, regMatrix, regSeats, lambdas, solver = c("MatrixModels", "cholesky"), trace = FALSE)
+nFoldSTRCV = function(n,
+                      trainData, fcastData, completeData = NULL, # parameter completeData is required only for iterative methods
+                      trainC, fcastC, completeC,
+                      regMatrix, regSeats, lambdas,
+                      solver = c("Matrix", "cholesky"), trace = FALSE, iterControl = list(maxiter = 20, tol = 1E-6))
 {
   SSE = 0
   l = 0
   lm = lambdaMatrix(lambdas, regSeats)
   R = lm %*% regMatrix
-  #   resultList = list()
-  #   for(i in 1:n) {
+
+  e = NULL
+  if(solver[1] == "iterative") {
+    if(solver[2] %in% c("cg-chol", "lsmr-chol", "lsmr")) {
+      e = new.env(parent = .GlobalEnv)
+    }
+    if(solver[2] %in% c("cg-chol", "lsmr-chol")) {
+      noNA = !is.na(completeData)
+      y = completeData[noNA]
+      C = completeC[noNA,]
+      X = rBind(C, R)
+      coef0 = try(lmSolver(X, y, type = solver[1], method = solver[2], env = e, iterControl = iterControl, trace = trace), silent = !trace)
+      if("try-error" %in% class(coef0)) {
+        if(trace) cat("\nError in lmSolver... iterative solvers without preconditioners will be used...\n")
+      }
+    }
+  }
+
+  resultList = list()
+  # for(i in rev(1:n)) {
   resultList = foreach(i = 1:n) %dopar% {
     noNA = !is.na(trainData[[i]])
     y = (trainData[[i]])[noNA]
     C = (trainC[[i]])[noNA,]
     X = rBind(C, R)
-    coef = try(lmSolver(X, y, C, type = solver[1], method = solver[2]), silent = !trace)
+    coef = try(lmSolver(X, y, type = solver[1], method = solver[2], env = e, iterControl = iterControl, trace = trace), silent = !trace)
     if("try-error" %in% class(coef)) {
-      if(trace) {cat("\nError in lmSolver...\n")}
+      if(trace) cat("\nError in lmSolver...\n")
+      # return(Inf)
       # next
-      c(SSE = 0, l = 0)
+      c(SSE = Inf, l = 1)
+      # c(SSE = 0, l = 0)
     } else {
       fcast = fcastC[[i]] %*% coef
       resid = fcastData[[i]] - as.vector(fcast)
@@ -788,7 +744,7 @@ extractPattern = function(predictors)
 {
   pattern = NULL
   for(i in seq_along(predictors)) {
-    pattern = c(pattern, predictors[[i]]$lambdas != 0)
+    pattern = c(pattern, predictors[[i]]$lambdas > 0)
   }
   return(pattern)
 }
@@ -802,11 +758,13 @@ extractP = function(predictors, pattern)
   return(lambdas[pattern])
 }
 
-createLambdas = function(p, pattern)
+createLambdas = function(p, pattern, original)
 {
   ensure(length(pattern) %% 3 == 0)
+  ensure(length(pattern) == length(original))
 
-  pLong = rep(0, length(pattern))
+  # pLong = rep(0, length(pattern))
+  pLong = original
   pLong[pattern] = p
   i = 1
   l = list()
@@ -839,6 +797,8 @@ createLambdas = function(p, pattern)
 #' @inheritParams nMCIter
 #' @inheritParams control
 #' @inheritParams trace
+#' @param iterControl Control parameters for some experimental features.
+#' This should not be used by an ordinary user.
 #' @templateVar class STR
 #' @templateVar topLevel1 \item \strong{cvMSE} -- optional cross validated (leave one out) Mean Squared Error.
 #' @templateVar topLevel2 \item \strong{optim.CV.MSE} or \strong{optim.CV.MAE} -- best cross validated Mean Squared Error or Mean Absolute Error (n-fold) achieved during minimisation procedure.
@@ -944,10 +904,11 @@ STR = function(data, predictors,
                robust = FALSE,
                lambdas = NULL,
                pattern = extractPattern(predictors), nFold = 5, reltol = 0.005, gapCV = 1,
-               solver = c("MatrixModels", "cholesky"),
+               solver = c("Matrix", "cholesky"),
                nMCIter = 100,
                control = list(nnzlmax = 1000000, nsubmax = 300000, tmpmax = 50000),
-               trace = FALSE
+               trace = FALSE,
+               iterControl = list(maxiter = 20, tol = 1E-6)
 )
 {
   if(robust) {
@@ -967,7 +928,7 @@ STR = function(data, predictors,
            confidence = confidence, lambdas = lambdas,
            pattern = pattern, nFold = nFold,
            reltol = reltol, gapCV = gapCV,
-           solver = solver, trace = trace)
+           solver = solver, trace = trace, iterControl = iterControl)
     )
   }
 }
@@ -975,8 +936,10 @@ STR = function(data, predictors,
 STR_ = function(data, predictors,
   confidence = NULL, lambdas = NULL,
   pattern = extractPattern(predictors), nFold = 5, reltol = 0.005, gapCV = 1,
-  solver = c("MatrixModels", "cholesky"),
-  trace = FALSE
+  solver = c("Matrix", "cholesky"),
+  trace = FALSE,
+  ratioGap = 1e6, # Ratio to define bounds for one-dimensional search
+  iterControl = list(maxiter = 20, tol = 1E-6)
 )
 {
   if(any(confidence <= 0 | confidence >= 1)) stop("confidence must be between 0 and 1")
@@ -987,15 +950,16 @@ STR_ = function(data, predictors,
   {
     p = exp(p) # Optimisation is on log scale
     if(trace) {cat("\nParameters = ["); cat(p); cat("]\n")}
-    newLambdas = createLambdas(p, pattern = pattern)
+    newLambdas = createLambdas(p, pattern = pattern, original = origP)
     cv = nFoldSTRCV(n = nFold,
-                    trainData = trainData, fcastData = fcastData,
-                    trainC = trainC, fcastC = fcastC,
+                    trainData = trainData, fcastData = fcastData, completeData = data,
+                    trainC = trainC, fcastC = fcastC, completeC = C,
                     regMatrix = regMatrix, regSeats = regSeats,
                     lambdas = newLambdas,
                     solver = solver,
-                    trace = trace)
-    if(trace) {cat("CV = "); cat(cv); cat("\n")}
+                    trace = trace,
+                    iterControl = iterControl)
+    if(trace) {cat("CV = "); cat(format(cv, digits = 16)); cat("\n")}
     return(cv)
   }
 
@@ -1019,12 +983,29 @@ STR_ = function(data, predictors,
 
   if(!is.null(lambdas)) {
     initP = extractP(lambdas, pattern)
+    origP = abs(extractP(lambdas, rep(TRUE, length(pattern))))
   } else {
     initP = extractP(predictors, pattern)
+    origP = abs(extractP(predictors, rep(TRUE, length(pattern))))
   }
+
+#  cat("\ninitP: "); cat(initP)
+#   if(length(initP) == 1) {
+#     lower = initP/ratioGap
+#     upper = initP*ratioGap
+#     cat("\nlower: "); cat(lower)
+#     cat("\nupper: "); cat(upper)
+#  }
+#  cat("\n")
+
   # Optimisation is performed on log scale
-  optP = optim(par = log(initP), fn = f, method = "Nelder-Mead", control = list(reltol = reltol))
-  newLambdas = createLambdas(exp(optP$par), pattern)
+  optP = optim(par = log(initP),
+               fn = f,
+               method = ifelse(length(initP) > 1, "Nelder-Mead", "Brent"),
+               lower = ifelse(length(initP) > 1, -Inf, log(initP/ratioGap)),
+               upper = ifelse(length(initP) > 1, Inf, log(initP*ratioGap)),
+               control = list(reltol = reltol))
+  newLambdas = createLambdas(exp(optP$par), pattern = pattern, original = origP)
 
   result = STRmodel(data, strDesign = strDesign, lambdas = newLambdas, confidence = confidence, trace = trace)
   result$optim.CV.MSE = optP$value
