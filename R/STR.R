@@ -44,7 +44,10 @@ first <- cmpfun(function(x)
   head(x, n = 1)
 })
 
-# One dimensional territory belonging to a seasonal knot (for all seasonal knots)
+# One dimensional territory belonging to a seasonal knot (for all seasonal knots).
+# Territory is the half sum of all lengths of all segments attached to the knot
+# (there can be more or less than two attached to a knot if the seasonal
+# structure is not a circle or a segment).
 sTerritory = cmpfun(function(seasonalStructure)
 {
   sKnots = seasonalStructure$sKnots
@@ -164,6 +167,9 @@ knotToIndex2 = cmpfun(function(knot, flatKnots, indexes) {
   indexes[flatKnots == knot]
 })
 
+# Creates a matrix which distributes any value between knots
+# to the corresponding values at knots and any value at a knot
+# is applied to this knot directly.
 getInfluenceMatrix = cmpfun(function(seasons, sKnots)
 {
   m = new.env(parent = .GlobalEnv)
@@ -187,6 +193,8 @@ getInfluenceMatrix = cmpfun(function(seasons, sKnots)
   return(sparseMatrix(x = m$ra[1L:m$l], i = as.integer(m$ia[1L:m$l]), j = as.integer(m$ja[1L:m$l]), dims = as.integer(m$d)))
 })
 
+# Creates a matrix which takes values at seasonal and time knots and interpolates
+# these values at coordinates of the observed points.
 seasonalPredictorConstructor = cmpfun(function(predictor)
 {
   if(!checkPredictor(predictor)) stop(paste0('Predictor "', predictor$name, '" has wrong structure...'))
@@ -230,13 +238,13 @@ seasonalPredictorConstructor = cmpfun(function(predictor)
   return(result)
 })
 
-# Creates a sparse matrix which takes first descrete differences of a vector
+# Creates a sparse matrix which takes first discrete differences of a vector
 diff1 = cmpfun(function(nCols)
 {
   return(diff(Diagonal(nCols)))
 })
 
-# Creates a sparse matrix which takes second descrete differences of a vector
+# Creates a sparse matrix which takes second discrete differences of a vector
 diff2 = cmpfun(function(nCols)
 {
   return(diff1(nCols-1) %*% diff1(nCols))
@@ -275,6 +283,11 @@ lrKnots = cmpfun(function(seasonalStructure)
   return(list(lKnots = lKnots, rKnots = rKnots))
 })
 
+# Creates a matrix which translates a seasonal column to the second derivatives
+# applied to that column. Since the seasonal structure/topology can be different
+# from cycle, the procedure is rather complicated and takes into account cases
+# when a node in the seasonal graph can have none/multiple incoming vertexes and/or
+# none/multiple outcoming vertexes.
 cycle2Derivatives = cmpfun(function(seasonalStructure, norm = 2)
 {
   sKnots = seasonalStructure$sKnots
@@ -315,6 +328,8 @@ cycle2Derivatives = cmpfun(function(seasonalStructure, norm = 2)
   return(sparseMatrix(x = m$ra[1L:m$l], i = as.integer(m$ia[1L:m$l]), j = as.integer(m$ja[1L:m$l]), dims = as.integer(m$d)))
 })
 
+# Creates a matrix to calculate regularization values
+# when second derivatives are taken along seasonal dimension.
 ssRegulariser = cmpfun(function(predictor, norm = 2)
 {
   seasonalStructure = predictor$seasonalStructure
@@ -327,7 +342,7 @@ ssRegulariser = cmpfun(function(predictor, norm = 2)
 
   m = cycle2Derivatives(seasonalStructure, norm)
 
-  weights = tWeights(knots, norm)
+  weights = tWeights(knots, norm) # tWeights (not sWeights) because width along t dimension should be taken into account
 
   ensure(length(weights) == nKnots)
 
@@ -341,6 +356,8 @@ ssRegulariser = cmpfun(function(predictor, norm = 2)
   return(m1 %*% m2)
 })
 
+# Creates a matrix to calculate regularization values
+# when second derivatives are taken along time dimension.
 ttRegulariser = cmpfun(function(predictor, norm = 2)
 {
   seasonalStructure = predictor$seasonalStructure
@@ -351,7 +368,7 @@ ttRegulariser = cmpfun(function(predictor, norm = 2)
 
   m = vector2Derivatives(timeKnots, tWeights(timeKnots, norm)[c(-1,-nKnots)])
 
-  weights = sWeights(seasonalStructure, norm)
+  weights = sWeights(seasonalStructure, norm) # sWeights (not tWeights) because width along s dimension should be taken into account
 
   listM = list()
   for(i in 1:nSKnots) {
@@ -369,12 +386,14 @@ ttRegulariser = cmpfun(function(predictor, norm = 2)
   }
 })
 
-# Translates full seasonal matrix coordinates to vector position
+# Translates full seasonal matrix coordinates to vector positions
 translST = cmpfun(function(s, t, nSKnots)
 {
   return((t-1)*nSKnots + (s-1)%%nSKnots + 1)
 })
 
+# Creates a matrix to calculate regularization values
+# when second derivatives are taken along s and t dimensions.
 stRegulariser = cmpfun(function(predictor, norm = 2)
 {
   timeKnots = predictor$timeKnots
@@ -417,7 +436,7 @@ stRegulariser = cmpfun(function(predictor, norm = 2)
   return(m1 %*% m2)
 })
 
-# Creates regularisation matrix for one predictor.
+# Creates regularization matrix for one predictor.
 # norm parameter specifies which norm is used L2 or L1. It affects how distance between knots should affect knot weigts.
 # lambdas0or1 is a "technical" parameter and when it is TRUE then lambdas are not taken into account. It is used to create
 # a "template" matrix to be later adjusted by multiplying by appropriate lambdas. It is done for performance.
@@ -446,7 +465,7 @@ predictorRegulariser = cmpfun(function(predictor, norm = 2, lambdas0or1 = FALSE)
   return(list(matrix = result, lengths = c(l1, l2, l3)))
 })
 
-# The "constructor" matrix is resposible for reconstruction the data from the parameters.
+# The "constructor" matrix is responsible for reconstruction the data from the parameters.
 constructorMatrix = function(predictors)
 {
   l = list()
@@ -466,7 +485,7 @@ constructorMatrix = function(predictors)
   return(list(matrix = do.call(cbind, l), seats = predictorSeats))
 }
 
-# The "regulariser" matrix is resposible for penalty calculations.
+# The "regulariser" matrix is responsible for penalty calculations.
 regulariserMatrix = cmpfun(function(predictors, norm = 2, lambdas0or1 = FALSE)
 {
   l = list()
@@ -640,9 +659,9 @@ STRmodel = function(data, predictors = NULL, strDesign = NULL, lambdas = NULL,
 
   noNA = !is.na(as.vector(data))
   y = as.vector(data)[noNA]
-  X = design[c(noNA, rep(TRUE, nrow(design) - length(noNA))),] # noNA should be extended with TRUE values to keep rows resposible for regularisation
+  X = design[c(noNA, rep(TRUE, nrow(design) - length(noNA))),,drop=FALSE] # noNA should be extended with TRUE values to keep rows resposible for regularisation
   if(trace) {cat("X matrix (NA removed) dimensions: "); cat(dim(X)); cat("\n")}
-  C = cm$matrix[noNA,]
+  C = cm$matrix[noNA,,drop=FALSE]
   CC = cm$matrix
 
   if(is.null(confidence)) {
