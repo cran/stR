@@ -25,38 +25,38 @@ form (as predictors) and must be described in this list.\cr
 Every predictor is a list of the following structures:\cr
 \itemize{
 \item \strong{data} -- vector of length \emph{\strong{L}} (length of input data,
-  see above). For trend or for a seasonal component it is a vector of ones.
-  For a flexible or a seasonal predictor it is a vector of the predictor's data.
+see above). For trend or for a seasonal component it is a vector of ones.
+For a flexible or a seasonal predictor it is a vector of the predictor's data.
 \item \strong{times} -- vector of length \emph{\strong{L}} of times of observations.
 \item \strong{seasons} -- vector of length \emph{\strong{L}}. It is a vector of ones
-  for a trend or a flexible predictor. It is vector assigning seasons to every
-  observation (for a seasonal component or a seasonal predictor).
-  Seasons can be fractional for observations in between seasons.
+for a trend or a flexible predictor. It is vector assigning seasons to every
+observation (for a seasonal component or a seasonal predictor).
+Seasons can be fractional for observations in between seasons.
 \item \strong{timeKnots} -- vector of times (time knots) where knots are positioned
-  (for a seasonal component or a seasonal predictor a few knots have the same time;
-  every knot is represented by time and season). Usually this vector coincides with
-  \strong{times} vector described above, or \strong{timeKnots} is a subset of
-  \strong{times} vector.
+(for a seasonal component or a seasonal predictor a few knots have the same time;
+every knot is represented by time and season). Usually this vector coincides with
+\strong{times} vector described above, or \strong{timeKnots} is a subset of
+\strong{times} vector.
 \item \strong{seasonalStructure} -- describes seasonal topology (which can have complex
-  structure) and seasonal knots.The seasonal topology is described by a list of
-  segments and seasonal knots, which are positioned inside the segments, on borders of
-  the segments or, when they are on on borders, they can connect two or more segments.\cr
+structure) and seasonal knots.The seasonal topology is described by a list of
+segments and seasonal knots, which are positioned inside the segments, on borders of
+the segments or, when they are on on borders, they can connect two or more segments.\cr
 \strong{seasonalStructure} is a list of two elements:\cr
 \itemize{
 \item \strong{segments} -- a list of vectors representing segments.
 Each vector must contain two ordered real values which represent left and right borders
-  of a segment. Segments should not intersect (inside same predictor).
+of a segment. Segments should not intersect (inside same predictor).
 \item \strong{sKnots} -- a list of real values (vectors of length one) or vectors of
-  lengths two or greater (seasonal knots) defining seasons of the knots (every knot
-  is represented by time and season). All real values must belong (be inside or on
-  border of) segments listed in \strong{segments}. If a few values represent a single
-  seasonal knot then all these values must be on borders of some segments (or a single
-  segment). In this case they represent a seasonal knot which connects a few segments
-  (or both sides of one segment).
+lengths two or greater (seasonal knots) defining seasons of the knots (every knot
+is represented by time and season). All real values must belong (be inside or on
+border of) segments listed in \strong{segments}. If a few values represent a single
+seasonal knot then all these values must be on borders of some segments (or a single
+segment). In this case they represent a seasonal knot which connects a few segments
+(or both sides of one segment).
 }
 \item \strong{lambdas} -- a vector with three values representing lambda (smoothing)
-  parameters (time-time, season-season, time-season flexibility parameters) for this
-  predictor.
+parameters (time-time, season-season, time-season flexibility parameters) for this
+predictor.
 }}
 
 \item{strDesign}{An optional parameter used to create the design
@@ -124,36 +124,44 @@ Seasonal-Trend decomposition of time series data using Regression.
 }
 \examples{
 n <- 50
-trendSeasonalStructure <- list(segments = list(c(0,1)), sKnots = list(c(1,0)))
+trendSeasonalStructure <- list(segments = list(c(0, 1)), sKnots = list(c(1, 0)))
 ns <- 5
-seasonalStructure <- list(segments = list(c(0,ns)), sKnots = c(as.list(1:(ns-1)),list(c(ns,0))))
-seasons <- (0:(n-1))\%\%ns + 1
+seasonalStructure <- list(
+  segments = list(c(0, ns)),
+  sKnots = c(as.list(1:(ns - 1)), list(c(ns, 0)))
+)
+seasons <- (0:(n - 1)) \%\% ns + 1
 trendSeasons <- rep(1, length(seasons))
 times <- seq_along(seasons)
-data <- seasons + times/4
+data <- seasons + times / 4
 plot(times, data, type = "l")
 timeKnots <- times
 trendData <- rep(1, n)
 seasonData <- rep(1, n)
-trend <- list(data = trendData, times = times, seasons = trendSeasons,
-  timeKnots = timeKnots, seasonalStructure = trendSeasonalStructure, lambdas = c(1,0,0))
-season <- list(data = seasonData, times = times, seasons = seasons,
-  timeKnots = timeKnots, seasonalStructure = seasonalStructure, lambdas = c(10,0,0))
+trend <- list(
+  data = trendData, times = times, seasons = trendSeasons,
+  timeKnots = timeKnots, seasonalStructure = trendSeasonalStructure, lambdas = c(1, 0, 0)
+)
+season <- list(
+  data = seasonData, times = times, seasons = seasons,
+  timeKnots = timeKnots, seasonalStructure = seasonalStructure, lambdas = c(10, 0, 0)
+)
 predictors <- list(trend, season)
 
 str1 <- STRmodel(data, predictors)
 plot(str1)
 
-data[c(3,4,7,20,24,29,35,37,45)] <- NA
+data[c(3, 4, 7, 20, 24, 29, 35, 37, 45)] <- NA
 plot(times, data, type = "l")
 str2 <- STRmodel(data, predictors)
 plot(str2)
 
 }
 \references{
-Dokumentov, A., and Hyndman, R.J. (2016)
-STR: A Seasonal-Trend Decomposition Procedure Based on Regression
-\href{https://www.monash.edu/business/econometrics-and-business-statistics/research/publications/ebs/wp13-15.pdf}{www.monash.edu/business/econometrics-and-business-statistics/research/publications/ebs/wp13-15.pdf}
+Dokumentov, A., and Hyndman, R.J. (2022)
+STR: Seasonal-Trend decomposition using Regression,
+\emph{INFORMS Journal on Data Science}, 1(1), 50-62.
+\url{https://robjhyndman.com/publications/str/}
 }
 \seealso{
 \code{\link{AutoSTR}}

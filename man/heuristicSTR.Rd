@@ -29,38 +29,38 @@ form (as predictors) and must be described in this list.\cr
 Every predictor is a list of the following structures:\cr
 \itemize{
 \item \strong{data} -- vector of length \emph{\strong{L}} (length of input data,
-  see above). For trend or for a seasonal component it is a vector of ones.
-  For a flexible or a seasonal predictor it is a vector of the predictor's data.
+see above). For trend or for a seasonal component it is a vector of ones.
+For a flexible or a seasonal predictor it is a vector of the predictor's data.
 \item \strong{times} -- vector of length \emph{\strong{L}} of times of observations.
 \item \strong{seasons} -- vector of length \emph{\strong{L}}. It is a vector of ones
-  for a trend or a flexible predictor. It is vector assigning seasons to every
-  observation (for a seasonal component or a seasonal predictor).
-  Seasons can be fractional for observations in between seasons.
+for a trend or a flexible predictor. It is vector assigning seasons to every
+observation (for a seasonal component or a seasonal predictor).
+Seasons can be fractional for observations in between seasons.
 \item \strong{timeKnots} -- vector of times (time knots) where knots are positioned
-  (for a seasonal component or a seasonal predictor a few knots have the same time;
-  every knot is represented by time and season). Usually this vector coincides with
-  \strong{times} vector described above, or \strong{timeKnots} is a subset of
-  \strong{times} vector.
+(for a seasonal component or a seasonal predictor a few knots have the same time;
+every knot is represented by time and season). Usually this vector coincides with
+\strong{times} vector described above, or \strong{timeKnots} is a subset of
+\strong{times} vector.
 \item \strong{seasonalStructure} -- describes seasonal topology (which can have complex
-  structure) and seasonal knots.The seasonal topology is described by a list of
-  segments and seasonal knots, which are positioned inside the segments, on borders of
-  the segments or, when they are on on borders, they can connect two or more segments.\cr
+structure) and seasonal knots.The seasonal topology is described by a list of
+segments and seasonal knots, which are positioned inside the segments, on borders of
+the segments or, when they are on on borders, they can connect two or more segments.\cr
 \strong{seasonalStructure} is a list of two elements:\cr
 \itemize{
 \item \strong{segments} -- a list of vectors representing segments.
 Each vector must contain two ordered real values which represent left and right borders
-  of a segment. Segments should not intersect (inside same predictor).
+of a segment. Segments should not intersect (inside same predictor).
 \item \strong{sKnots} -- a list of real values (vectors of length one) or vectors of
-  lengths two or greater (seasonal knots) defining seasons of the knots (every knot
-  is represented by time and season). All real values must belong (be inside or on
-  border of) segments listed in \strong{segments}. If a few values represent a single
-  seasonal knot then all these values must be on borders of some segments (or a single
-  segment). In this case they represent a seasonal knot which connects a few segments
-  (or both sides of one segment).
+lengths two or greater (seasonal knots) defining seasons of the knots (every knot
+is represented by time and season). All real values must belong (be inside or on
+border of) segments listed in \strong{segments}. If a few values represent a single
+seasonal knot then all these values must be on borders of some segments (or a single
+segment). In this case they represent a seasonal knot which connects a few segments
+(or both sides of one segment).
 }
 \item \strong{lambdas} -- a vector with three values representing lambda (smoothing)
-  parameters (time-time, season-season, time-season flexibility parameters) for this
-  predictor.
+parameters (time-time, season-season, time-season flexibility parameters) for this
+predictor.
 }}
 
 \item{confidence}{A vector of percentiles giving the coverage of confidence intervals.
@@ -140,18 +140,21 @@ If a parallel backend is registered for use before \code{STR} call,
 }
 \examples{
 \donttest{
-
-TrendSeasonalStructure <- list(segments = list(c(0,1)),
-sKnots = list(c(1,0)))
-WDSeasonalStructure <- list(segments = list(c(0,48), c(100,148)),
-                            sKnots = c(as.list(c(1:47,101:147)), list(c(0,48,100,148))))
+TrendSeasonalStructure <- list(
+  segments = list(c(0, 1)),
+  sKnots = list(c(1, 0))
+)
+WDSeasonalStructure <- list(
+  segments = list(c(0, 48), c(100, 148)),
+  sKnots = c(as.list(c(1:47, 101:147)), list(c(0, 48, 100, 148)))
+)
 
 TrendSeasons <- rep(1, nrow(electricity))
-WDSeasons <- as.vector(electricity[,"WorkingDaySeasonality"])
+WDSeasons <- as.vector(electricity[, "WorkingDaySeasonality"])
 
-Data <- as.vector(electricity[,"Consumption"])
-Times <- as.vector(electricity[,"Time"])
-TempM <- as.vector(electricity[,"Temperature"])
+Data <- as.vector(electricity[, "Consumption"])
+Times <- as.vector(electricity[, "Time"])
+TempM <- as.vector(electricity[, "Temperature"])
 TempM2 <- TempM^2
 
 TrendTimeKnots <- seq(from = head(Times, 1), to = tail(Times, 1), length.out = 116)
@@ -160,63 +163,82 @@ SeasonTimeKnots <- seq(from = head(Times, 1), to = tail(Times, 1), length.out = 
 TrendData <- rep(1, length(Times))
 SeasonData <- rep(1, length(Times))
 
-Trend <- list(name = "Trend",
-              data = TrendData,
-              times = Times,
-              seasons = TrendSeasons,
-              timeKnots = TrendTimeKnots,
-              seasonalStructure = TrendSeasonalStructure,
-              lambdas = c(1500,0,0))
-WDSeason <- list(name = "Dayly seas",
-                 data = SeasonData,
-                 times = Times,
-                 seasons = WDSeasons,
-                 timeKnots = SeasonTimeKnots,
-                 seasonalStructure = WDSeasonalStructure,
-                 lambdas = c(0.003,0,240))
-StaticTempM <- list(name = "Temp Mel",
-                    data = TempM,
-                    times = Times,
-                    seasons = NULL,
-                    timeKnots = NULL,
-                    seasonalStructure = NULL,
-                    lambdas = c(0,0,0))
-StaticTempM2 <- list(name = "Temp Mel^2",
-                     data = TempM2,
-                     times = Times,
-                     seasons = NULL,
-                     timeKnots = NULL,
-                     seasonalStructure = NULL,
-                     lambdas = c(0,0,0))
+Trend <- list(
+  name = "Trend",
+  data = TrendData,
+  times = Times,
+  seasons = TrendSeasons,
+  timeKnots = TrendTimeKnots,
+  seasonalStructure = TrendSeasonalStructure,
+  lambdas = c(1500, 0, 0)
+)
+WDSeason <- list(
+  name = "Dayly seas",
+  data = SeasonData,
+  times = Times,
+  seasons = WDSeasons,
+  timeKnots = SeasonTimeKnots,
+  seasonalStructure = WDSeasonalStructure,
+  lambdas = c(0.003, 0, 240)
+)
+StaticTempM <- list(
+  name = "Temp Mel",
+  data = TempM,
+  times = Times,
+  seasons = NULL,
+  timeKnots = NULL,
+  seasonalStructure = NULL,
+  lambdas = c(0, 0, 0)
+)
+StaticTempM2 <- list(
+  name = "Temp Mel^2",
+  data = TempM2,
+  times = Times,
+  seasons = NULL,
+  timeKnots = NULL,
+  seasonalStructure = NULL,
+  lambdas = c(0, 0, 0)
+)
 Predictors <- list(Trend, WDSeason, StaticTempM, StaticTempM2)
 
-elec.fit <- heuristicSTR(data = Data,
-                predictors = Predictors,
-                gapCV = 48*7)
+elec.fit <- heuristicSTR(
+  data = Data,
+  predictors = Predictors,
+  gapCV = 48 * 7
+)
 
 plot(elec.fit,
-     xTime = as.Date("2000-01-11")+((Times-1)/48-10),
-     forecastPanels = NULL)
+  xTime = as.Date("2000-01-11") + ((Times - 1) / 48 - 10),
+  forecastPanels = NULL
+)
 
 ########################################
 
-TrendSeasonalStructure <- list(segments = list(c(0,1)),
-sKnots = list(c(1,0)))
-DailySeasonalStructure <- list(segments = list(c(0,48)),
-                               sKnots = c(as.list(1:47), list(c(48,0))))
-WeeklySeasonalStructure <- list(segments = list(c(0,336)),
-                                sKnots = c(as.list(seq(4,332,4)), list(c(336,0))))
-WDSeasonalStructure <- list(segments = list(c(0,48), c(100,148)),
-                            sKnots = c(as.list(c(1:47,101:147)), list(c(0,48,100,148))))
+TrendSeasonalStructure <- list(
+  segments = list(c(0, 1)),
+  sKnots = list(c(1, 0))
+)
+DailySeasonalStructure <- list(
+  segments = list(c(0, 48)),
+  sKnots = c(as.list(1:47), list(c(48, 0)))
+)
+WeeklySeasonalStructure <- list(
+  segments = list(c(0, 336)),
+  sKnots = c(as.list(seq(4, 332, 4)), list(c(336, 0)))
+)
+WDSeasonalStructure <- list(
+  segments = list(c(0, 48), c(100, 148)),
+  sKnots = c(as.list(c(1:47, 101:147)), list(c(0, 48, 100, 148)))
+)
 
 TrendSeasons <- rep(1, nrow(electricity))
-DailySeasons <- as.vector(electricity[,"DailySeasonality"])
-WeeklySeasons <- as.vector(electricity[,"WeeklySeasonality"])
-WDSeasons <- as.vector(electricity[,"WorkingDaySeasonality"])
+DailySeasons <- as.vector(electricity[, "DailySeasonality"])
+WeeklySeasons <- as.vector(electricity[, "WeeklySeasonality"])
+WDSeasons <- as.vector(electricity[, "WorkingDaySeasonality"])
 
-Data <- as.vector(electricity[,"Consumption"])
-Times <- as.vector(electricity[,"Time"])
-TempM <- as.vector(electricity[,"Temperature"])
+Data <- as.vector(electricity[, "Consumption"])
+Times <- as.vector(electricity[, "Time"])
+TempM <- as.vector(electricity[, "Temperature"])
 TempM2 <- TempM^2
 
 TrendTimeKnots <- seq(from = head(Times, 1), to = tail(Times, 1), length.out = 116)
@@ -226,60 +248,73 @@ SeasonTimeKnots2 <- seq(from = head(Times, 1), to = tail(Times, 1), length.out =
 TrendData <- rep(1, length(Times))
 SeasonData <- rep(1, length(Times))
 
-Trend <- list(name = "Trend",
-              data = TrendData,
-              times = Times,
-              seasons = TrendSeasons,
-              timeKnots = TrendTimeKnots,
-              seasonalStructure = TrendSeasonalStructure,
-              lambdas = c(1500,0,0))
-WSeason <- list(name = "Weekly seas",
-                data = SeasonData,
-                times = Times,
-                seasons = WeeklySeasons,
-                timeKnots = SeasonTimeKnots2,
-                seasonalStructure = WeeklySeasonalStructure,
-                lambdas = c(0.8,0.6,100))
-WDSeason <- list(name = "Dayly seas",
-                 data = SeasonData,
-                 times = Times,
-                 seasons = WDSeasons,
-                 timeKnots = SeasonTimeKnots,
-                 seasonalStructure = WDSeasonalStructure,
-                 lambdas = c(0.003,0,240))
-TrendTempM <- list(name = "Trend temp Mel",
-                   data = TempM,
-                   times = Times,
-                   seasons = TrendSeasons,
-                   timeKnots = TrendTimeKnots,
-                   seasonalStructure = TrendSeasonalStructure,
-                   lambdas = c(1e7,0,0))
-TrendTempM2 <- list(name = "Trend temp Mel^2",
-                    data = TempM2,
-                    times = Times,
-                    seasons = TrendSeasons,
-                    timeKnots = TrendTimeKnots,
-                    seasonalStructure = TrendSeasonalStructure,
-                    lambdas = c(0.01,0,0)) # Starting parameter is too far from the optimal value
+Trend <- list(
+  name = "Trend",
+  data = TrendData,
+  times = Times,
+  seasons = TrendSeasons,
+  timeKnots = TrendTimeKnots,
+  seasonalStructure = TrendSeasonalStructure,
+  lambdas = c(1500, 0, 0)
+)
+WSeason <- list(
+  name = "Weekly seas",
+  data = SeasonData,
+  times = Times,
+  seasons = WeeklySeasons,
+  timeKnots = SeasonTimeKnots2,
+  seasonalStructure = WeeklySeasonalStructure,
+  lambdas = c(0.8, 0.6, 100)
+)
+WDSeason <- list(
+  name = "Dayly seas",
+  data = SeasonData,
+  times = Times,
+  seasons = WDSeasons,
+  timeKnots = SeasonTimeKnots,
+  seasonalStructure = WDSeasonalStructure,
+  lambdas = c(0.003, 0, 240)
+)
+TrendTempM <- list(
+  name = "Trend temp Mel",
+  data = TempM,
+  times = Times,
+  seasons = TrendSeasons,
+  timeKnots = TrendTimeKnots,
+  seasonalStructure = TrendSeasonalStructure,
+  lambdas = c(1e7, 0, 0)
+)
+TrendTempM2 <- list(
+  name = "Trend temp Mel^2",
+  data = TempM2,
+  times = Times,
+  seasons = TrendSeasons,
+  timeKnots = TrendTimeKnots,
+  seasonalStructure = TrendSeasonalStructure,
+  lambdas = c(0.01, 0, 0)
+) # Starting parameter is too far from the optimal value
 Predictors <- list(Trend, WSeason, WDSeason, TrendTempM, TrendTempM2)
 
-elec.fit <- heuristicSTR(data = Data,
-                         predictors = Predictors,
-                         gapCV = 48*7)
+elec.fit <- heuristicSTR(
+  data = Data,
+  predictors = Predictors,
+  gapCV = 48 * 7
+)
 
 plot(elec.fit,
-     xTime = as.Date("2000-01-11")+((Times-1)/48-10),
-     forecastPanels = NULL)
+  xTime = as.Date("2000-01-11") + ((Times - 1) / 48 - 10),
+  forecastPanels = NULL
+)
 
 plotBeta(elec.fit, predictorN = 4)
 plotBeta(elec.fit, predictorN = 5)
-
 }
 }
 \references{
-Dokumentov, A., and Hyndman, R.J. (2016)
-STR: A Seasonal-Trend Decomposition Procedure Based on Regression
-\href{https://www.monash.edu/business/econometrics-and-business-statistics/research/publications/ebs/wp13-15.pdf}{www.monash.edu/business/econometrics-and-business-statistics/research/publications/ebs/wp13-15.pdf}
+Dokumentov, A., and Hyndman, R.J. (2022)
+STR: Seasonal-Trend decomposition using Regression,
+\emph{INFORMS Journal on Data Science}, 1(1), 50-62.
+\url{https://robjhyndman.com/publications/str/}
 }
 \seealso{
 \code{\link{STR}} \code{\link{STRmodel}} \code{\link{AutoSTR}}
