@@ -2,15 +2,17 @@
 
 # Manually translated from a publicly available Matlab code:
 # https://au.mathworks.com/matlabcentral/fileexchange/27183-lsmr--an-iterative-algorithm-for-least-squares-problems
-lsmr <- function(A,
-                 b,
-                 lambda = 0,
-                 atol = 1e-6,
-                 btol = 1e-6,
-                 conlim = 1e+8,
-                 itnlim = NULL,
-                 localSize = 0,
-                 show = FALSE) {
+lsmr <- function(
+  A,
+  b,
+  lambda = 0,
+  atol = 1e-6,
+  btol = 1e-6,
+  conlim = 1e+8,
+  itnlim = NULL,
+  localSize = 0,
+  show = FALSE
+) {
   # LSMR   Iterative solver for least-squares problems.
   #   X = LSMR(A,B) solves the system of linear equations A*X=B. If the system
   #   is inconsistent, it solves the least-squares problem min ||b - Ax||_2.
@@ -125,14 +127,14 @@ lsmr <- function(A,
 
   localVEnqueue <- function(v) {
     # Store v into the circular buffer localV.
-
-    if (localPointer < localSize) {
-      localPointer <- localPointer + 1
+    max_cols <- ncol(localV)
+    if (localPointer < max_cols) {
+      localPointer <<- localPointer + 1
     } else {
-      localPointer <- 1
-      localVQueueFull <- TRUE
+      localPointer <<- 1
+      localVQueueFull <<- TRUE
     }
-    localV[, localPointer] <- v
+    localV[, localPointer] <<- v
   } # nested function localVEnqueue
 
   #---------------------------------------------------------------------
@@ -142,13 +144,14 @@ lsmr <- function(A,
 
     vOutput <- v
     if (localVQueueFull) {
-      localOrthoLimit <- localSize
+      localOrthoLimit <- ncol(localV)
     } else {
       localOrthoLimit <- localPointer
     }
-    for (localOrthoCount in 1:localOrthoLimit) {
+    for (localOrthoCount in seq_len(localOrthoLimit)) {
       vtemp <- localV[, localOrthoCount]
-      vOutput <- vOutput - (t(vOutput) %*% vtemp) * vtemp
+      scalar <- as.numeric(t(vOutput) %*% vtemp)
+      vOutput <- vOutput - scalar * vtemp
     }
 
     return(vOutput)
@@ -162,7 +165,7 @@ lsmr <- function(A,
     if (is(A, "function")) {
       explicitA <- FALSE
     } else {
-      stop("A must be numeber or a function")
+      stop("A must be a matrix or a function")
     }
   }
 
@@ -177,7 +180,7 @@ lsmr <- function(A,
     "The iteration limit has been reached                      "
   )
 
-  hdg1 <- "   itn      x(1)       norm r    norm A'r"
+  hdg1 <- "   itn      x[1]       norm r    norm A'r"
   hdg2 <- " compatible   LS      norm A   cond A"
   pfreq <- 20 # print frequency (for repeating the heading)
   pcount <- 0 # print counter
@@ -194,8 +197,8 @@ lsmr <- function(A,
 
   if (explicitA) {
     v <- t(A) %*% u
-    m <- dim(A)[1]
-    n <- dim(A)[2]
+    m <- nrow(A)
+    n <- ncol(A)
   } else {
     v <- A(u, 2)
     m <- length(b)
@@ -203,7 +206,9 @@ lsmr <- function(A,
   }
 
   minDim <- min(m, n)
-  if (is.null(itnlim)) itnlim <- minDim
+  if (is.null(itnlim)) {
+    itnlim <- minDim
+  }
 
   if (show) {
     cat("\n\nLSMR            Least-squares solution of  Ax = b")
@@ -263,8 +268,7 @@ lsmr <- function(A,
   # Items for use in stopping rules.
   normb <- beta
   istop <- 0
-  ctol <- 0
-  if (conlim > 0) ctol <- 1 / conlim
+  ctol <- if (conlim > 0) 1 / conlim else 0
   normr <- beta
 
   # Exit if b=0 or A'b = 0.
@@ -280,11 +284,10 @@ lsmr <- function(A,
     test1 <- 1
     test2 <- alpha / beta
     cat(sprintf("\n\n%s%s", hdg1, hdg2))
-    cat(sprintf("\n%6g %12.5e", itn, x(1)))
+    cat(sprintf("\n%6g %12.5e", itn, x[1]))
     cat(sprintf(" %10.3e %10.3e", normr, normAr))
     cat(sprintf("  %8.1e %8.1e", test1, test2))
   }
-
 
   #------------------------------------------------------------------
   #     Main iteration loop.
@@ -422,29 +425,59 @@ lsmr <- function(A,
     # The effect is equivalent to the normAl tests using
     # atol = eps,  btol = eps,  conlim = 1/eps.
 
-    if (itn >= itnlim) istop <- 7
-    if (1 + test3 <= 1) istop <- 6
-    if (1 + test2 <= 1) istop <- 5
-    if (1 + t1 <= 1) istop <- 4
+    if (itn >= itnlim) {
+      istop <- 7
+    }
+    if (1 + test3 <= 1) {
+      istop <- 6
+    }
+    if (1 + test2 <= 1) {
+      istop <- 5
+    }
+    if (1 + t1 <= 1) {
+      istop <- 4
+    }
 
     # Allow for tolerances set by the user.
 
-    if (test3 <= ctol) istop <- 3
-    if (test2 <= atol) istop <- 2
-    if (test1 <= rtol) istop <- 1
+    if (test3 <= ctol) {
+      istop <- 3
+    }
+    if (test2 <= atol) {
+      istop <- 2
+    }
+    if (test1 <= rtol) {
+      istop <- 1
+    }
 
     # See if it is time to print something.
 
     if (show) {
       prnt <- 0
-      if (n <= 40) prnt <- 1
-      if (itn <= 10) prnt <- 1
-      if (itn >= itnlim - 10) prnt <- 1
-      if (itn %% 10 == 0) prnt <- 1
-      if (test3 <= 1.1 * ctol) prnt <- 1
-      if (test2 <= 1.1 * atol) prnt <- 1
-      if (test1 <= 1.1 * rtol) prnt <- 1
-      if (istop != 0) prnt <- 1
+      if (n <= 40) {
+        prnt <- 1
+      }
+      if (itn <= 10) {
+        prnt <- 1
+      }
+      if (itn >= itnlim - 10) {
+        prnt <- 1
+      }
+      if (itn %% 10 == 0) {
+        prnt <- 1
+      }
+      if (test3 <= 1.1 * ctol) {
+        prnt <- 1
+      }
+      if (test2 <= 1.1 * atol) {
+        prnt <- 1
+      }
+      if (test1 <= 1.1 * rtol) {
+        prnt <- 1
+      }
+      if (istop != 0) {
+        prnt <- 1
+      }
 
       if (prnt) {
         if (pcount >= pfreq) {
@@ -452,7 +485,7 @@ lsmr <- function(A,
           cat(sprintf("\n\n%s%s", hdg1, hdg2))
         }
         pcount <- pcount + 1
-        cat(sprintf("\n%6g %12.5e", itn, x(1)))
+        cat(sprintf("\n%6g %12.5e", itn, x[1]))
         cat(sprintf(" %10.3e %10.3e", normr, normAr))
         cat(sprintf("  %8.1e %8.1e", test1, test2))
         cat(sprintf(" %8.1e %8.1e", normA, condA))

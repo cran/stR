@@ -16,13 +16,40 @@
 #' @inheritParams confidence
 #' @param nsKnots An optional vector parameter, defining the number of seasonal knots (per period) for each sesonal component.
 #' @inheritParams trace
-#' @templateVar class STR
-#' @templateVar topLevel1 \item \strong{cvMSE} -- optional cross validated (leave one out) Mean Squared Error.
-#' @templateVar topLevel2 \item \strong{optim.CV.MSE} -- best cross validated Mean Squared Error (n-fold) achieved during minimisation procedure.
-#' @templateVar topLevel3 \item \strong{nFold} -- the input \code{nFold} parameter.
-#' @templateVar topLevel4 \item \strong{gapCV} -- the input \code{gapCV} parameter.
-#' @templateVar topLevel5 \item \strong{method} -- always contains string \code{"AutoSTR"} for this function.
-#' @template returnValue
+#' @return A structure containing input and output data.
+#' It is an \strong{S3} class \code{STR}, which is a list with the following components:
+#' \itemize{
+#' \item \strong{output} -- contains decomposed data. It is a list of three components:
+#' \itemize{
+#' \item \strong{predictors} -- a list of components where each component
+#' corresponds to the input predictor. Every such component is a list containing the following:
+#' \itemize{
+#' \item \strong{data} -- fit/forecast for the corresponding predictor (trend, seasonal component, flexible or seasonal predictor).
+#' \item \strong{beta} -- beta coefficients of the fit of the coresponding predictor.
+#' \item \strong{lower} -- optional (if requested) matrix of lower bounds of confidence intervals.
+#' \item \strong{upper} -- optional (if requested) matrix of upper bounds of confidence intervals.
+#' }
+#' \item \strong{random} -- a list with one component \strong{data}, which contains residuals of the model fit.
+#' \item \strong{forecast} -- a list with two components:
+#' \itemize{
+#' \item \strong{data} -- fit/forecast for the model.
+#' \item \strong{beta} -- beta coefficients of the fit.
+#' \item \strong{lower} -- optional (if requested) matrix of lower bounds of confidence intervals.
+#' \item \strong{upper} -- optional (if requested) matrix of upper bounds of confidence intervals.
+#' }
+#' }
+#' \item \strong{input} -- input parameters and lambdas used for final calculations.
+#' \itemize{
+#' \item \strong{data} -- input data.
+#' \item \strong{predictors} - input predictors.
+#' \item \strong{lambdas} -- smoothing parameters used for final calculations (same as input lambdas for STR method).
+#' }
+#' \item \strong{cvMSE} -- optional cross validated (leave one out) Mean Squared Error.
+#' \item \strong{optim.CV.MSE} -- best cross validated Mean Squared Error (n-fold) achieved during minimisation procedure.
+#' \item \strong{nFold} -- the input \code{nFold} parameter.
+#' \item \strong{gapCV} -- the input \code{gapCV} parameter.
+#' \item \strong{method} -- always contains string \code{"AutoSTR"} for this function.
+#' }
 #' @author Alexander Dokumentov
 #' @references Dokumentov, A., and Hyndman, R.J. (2022)
 #' STR: Seasonal-Trend decomposition using Regression,
@@ -42,8 +69,15 @@
 #' @export
 
 AutoSTR <- function(
-    data, robust = FALSE, gapCV = NULL, lambdas = NULL, reltol = 0.001,
-    confidence = NULL, nsKnots = NULL, trace = FALSE) {
+  data,
+  robust = FALSE,
+  gapCV = NULL,
+  lambdas = NULL,
+  reltol = 0.001,
+  confidence = NULL,
+  nsKnots = NULL,
+  trace = FALSE
+) {
   nFold <- 5 # Not configurable parameter
   if ("msts" %in% class(data)) {
     periods <- attr(data, "msts")
@@ -63,17 +97,31 @@ AutoSTR <- function(
     stop("confidence must be between 0 and 1")
   }
 
-  if (is.null(gapCV)) gapCV <- max(min(max(periods), floor(length(data) / nFold) - 1), 1)
+  if (is.null(gapCV)) {
+    gapCV <- max(min(max(periods), floor(length(data) / nFold) - 1), 1)
+  }
 
   times <- as.vector(time(data))
   vData <- as.vector(data)
-  trendSeasonalStructure <- list(segments = list(c(0, 1)), sKnots = list(c(1, 0)))
+  trendSeasonalStructure <- list(
+    segments = list(c(0, 1)),
+    sKnots = list(c(1, 0))
+  )
   trendSeasons <- rep(1, length(vData))
-  trendTimeKnots <- seq(from = first(times), to = last(times), length.out = max(16, length(vData) / max(periods) * 2 + 1))
+  trendTimeKnots <- seq(
+    from = first(times),
+    to = last(times),
+    length.out = max(16, length(vData) / max(periods) * 2 + 1)
+  )
   trendData <- rep(1, length(vData))
   trend <- list(
-    name = "Trend", data = trendData, times = times, seasons = trendSeasons,
-    timeKnots = trendTimeKnots, seasonalStructure = trendSeasonalStructure, lambdas = c(1, 0, 0)
+    name = "Trend",
+    data = trendData,
+    times = times,
+    seasons = trendSeasons,
+    timeKnots = trendTimeKnots,
+    seasonalStructure = trendSeasonalStructure,
+    lambdas = c(1, 0, 0)
   )
 
   predictors <- list(trend)
@@ -87,21 +135,43 @@ AutoSTR <- function(
     }
     seasonalStructure <- list(
       segments = list(c(0, p)),
-      sKnots = c(as.list(
-        tail(head(seq(from = 0, to = p, length.out = length.out), -1), -1)
-      ), list(c(p, 0)))
+      sKnots = c(
+        as.list(
+          tail(head(seq(from = 0, to = p, length.out = length.out), -1), -1)
+        ),
+        list(c(p, 0))
+      )
     )
     seasons <- seq_along(vData) %% p
-    seasonTimeKnots <- seq(from = first(times), to = last(times), length.out = length(vData) / max(periods) + 1)
+    seasonTimeKnots <- seq(
+      from = first(times),
+      to = last(times),
+      length.out = length(vData) / max(periods) + 1
+    )
     seasonData <- rep(1, length(vData))
     season <- list(
-      name = paste("Seasonality", p), data = seasonData, times = times, seasons = seasons,
-      timeKnots = seasonTimeKnots, seasonalStructure = seasonalStructure, lambdas = c(1, 1, 1)
+      name = paste("Seasonality", p),
+      data = seasonData,
+      times = times,
+      seasons = seasons,
+      timeKnots = seasonTimeKnots,
+      seasonalStructure = seasonalStructure,
+      lambdas = c(1, 1, 1)
     )
     predictors[[length(predictors) + 1]] <- season
   }
 
-  str <- STR(data, predictors, gapCV = gapCV, nFold = nFold, reltol = reltol, confidence = confidence, lambdas = lambdas, trace = trace, robust = robust)
+  str <- STR(
+    data,
+    predictors,
+    gapCV = gapCV,
+    nFold = nFold,
+    reltol = reltol,
+    confidence = confidence,
+    lambdas = lambdas,
+    trace = trace,
+    robust = robust
+  )
 
   return(str)
 }

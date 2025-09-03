@@ -1,124 +1,116 @@
 ## ----setup, include = FALSE---------------------------------------------------
-knitr::opts_chunk$set(cache = FALSE, fig.show = "hold", fig.width = 7, fig.height = 3)
+knitr::opts_chunk$set(
+  cache = FALSE,
+  fig.show = "hold",
+  fig.width = 7,
+  fig.height = 3
+)
+cache <- function(object, file) {
+  f <- paste0("../inst/extdata/", file)
+  if (file.exists(f)) {
+    readRDS(f)
+  } else {
+    saveRDS(
+      object, 
+      paste0("../inst/extdata/", file),
+      compress = "xz",
+    )
+    object
+  }
+}
+
+## ----libraries, message = FALSE-----------------------------------------------
 library(stR)
 library(forecast)
 library(seasonal)
 
-## ----fig.height = 4.5---------------------------------------------------------
+## ----classical, fig.height = 4.5----------------------------------------------
 m <- decompose(co2)
 plot(m)
 
-## ----fig.height = 4.5---------------------------------------------------------
+## ----stl, fig.height = 4.5----------------------------------------------------
 plot(stl(log(co2), s.window = "periodic", t.window = 30))
 
-## ----include = FALSE----------------------------------------------------------
-f <- "co2.fit.tbats.RDS"
-if (file.exists(f)) {
-  co2.fit <- readRDS(f)
-} else {
-  co2.fit <- tbats(co2)
-  saveRDS(co2.fit, f, compress = "xz")
-}
+## ----tbats, include = FALSE---------------------------------------------------
+co2.fit <- tbats(co2) |> cache("co2.fit.tbats.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  library(forecast)
-#  co2.fit <- tbats(co2)
-
-## ----fig.height = 4.5---------------------------------------------------------
+## ----tbats_plot, fig.height = 4.5---------------------------------------------
 plot(co2.fit)
 
-## -----------------------------------------------------------------------------
-library(seasonal)
+## ----seas---------------------------------------------------------------------
 co2.fit <- seas(co2)
 plot(co2.fit, trend = TRUE)
 
-## ----include = FALSE----------------------------------------------------------
-f <- "co2.fit.stR.RDS"
-if (file.exists(f)) {
-  co2.fit <- readRDS(f)
-} else {
-  co2.fit <- AutoSTR(co2)
-  saveRDS(co2.fit, f, compress = "xz")
-}
+## ----autostr, include = FALSE-------------------------------------------------
+co2.fit <- AutoSTR(co2) |> cache("co2.fit.stR.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  co2.fit <- AutoSTR(co2)
-
-## ----fig.height = 4-----------------------------------------------------------
+## ----autostr_plot, fig.height = 4---------------------------------------------
 plot(co2.fit)
 
-## -----------------------------------------------------------------------------
+## ----taylor-------------------------------------------------------------------
 taylor.msts <- msts(log(head(as.vector(taylor), 336 * 4)),
   seasonal.periods = c(48, 48 * 7, 48 * 7 * 52.25),
   start = 2000 + 22 / 52
 )
 plot(taylor.msts, ylab = "Electricity demand")
 
-## ----include = FALSE----------------------------------------------------------
-f <- "taylor.fit.stR.RDS"
-if (file.exists(f)) {
-  taylor.fit <- readRDS(f)
-} else {
-  taylor.fit <- AutoSTR(taylor.msts, gapCV = 48, confidence = 0.95)
-  saveRDS(taylor.fit, f, compress = "xz")
-}
+## ----taylor_fit, include = FALSE----------------------------------------------
+taylor.fit <- AutoSTR(taylor.msts, gapCV = 48, confidence = 0.95) |>
+  cache("taylor.fit.stR.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  taylor.fit <- AutoSTR(taylor.msts, gapCV = 48, confidence = 0.95)
-
-## ----fig.height = 4.5---------------------------------------------------------
+## ----taylor_plot, fig.height = 4.5--------------------------------------------
 plot(taylor.fit)
 
-## -----------------------------------------------------------------------------
+## ----grocery------------------------------------------------------------------
 plot(grocery, ylab = "NSW Grocery Turnover, $ 10^6")
 
-## -----------------------------------------------------------------------------
+## ----grocery_plot-------------------------------------------------------------
 logGr <- log(grocery)
 plot(logGr, ylab = "NSW Grocery Turnover, log scale")
 
-## -----------------------------------------------------------------------------
+## ----trendSeasonalStructure---------------------------------------------------
 trendSeasonalStructure <- list(
   segments = list(c(0, 1)),
   sKnots = list(c(1, 0))
 )
 
-## -----------------------------------------------------------------------------
+## ----seasonalStructure--------------------------------------------------------
 seasonalStructure <- list(
   segments = list(c(0, 12)),
   sKnots = list(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, c(12, 0))
 )
 
-## -----------------------------------------------------------------------------
+## ----seasons------------------------------------------------------------------
 seasons <- as.vector(cycle(logGr))
 
-## -----------------------------------------------------------------------------
+## ----trendSeasons-------------------------------------------------------------
 trendSeasons <- rep(1, length(logGr))
 
-## -----------------------------------------------------------------------------
+## ----times--------------------------------------------------------------------
 times <- as.vector(time(logGr))
 
-## -----------------------------------------------------------------------------
+## ----data---------------------------------------------------------------------
 data <- as.vector(logGr)
 
-## -----------------------------------------------------------------------------
+## ----trendTimeKnots-----------------------------------------------------------
 trendTimeKnots <- seq(
   from = head(times, 1),
   to = tail(times, 1),
   length.out = 175
 )
 
-## -----------------------------------------------------------------------------
+## ----seasonTimeKnots----------------------------------------------------------
 seasonTimeKnots <- seq(
   from = head(times, 1),
   to = tail(times, 1),
   length.out = 15
 )
 
-## -----------------------------------------------------------------------------
+## ----trendData----------------------------------------------------------------
 trendData <- rep(1, length(logGr))
 seasonData <- rep(1, length(logGr))
 
-## -----------------------------------------------------------------------------
+## ----trend--------------------------------------------------------------------
 trend <- list(
   name = "Trend",
   data = trendData,
@@ -129,7 +121,7 @@ trend <- list(
   lambdas = c(0.5, 0, 0)
 )
 
-## -----------------------------------------------------------------------------
+## ----season-------------------------------------------------------------------
 season <- list(
   name = "Yearly seasonality",
   data = seasonData,
@@ -140,25 +132,17 @@ season <- list(
   lambdas = c(10, 0, 0)
 )
 
-## -----------------------------------------------------------------------------
+## ----predictors---------------------------------------------------------------
 predictors <- list(trend, season)
 
-## ----include = FALSE----------------------------------------------------------
-f <- "gr.fit.stR.RDS"
-if (file.exists(f)) {
-  gr.fit <- readRDS(f)
-} else {
-  gr.fit <- STR(data, predictors, confidence = 0.95, gap = 1, reltol = 0.00001)
-  saveRDS(gr.fit, f, compress = "xz")
-}
+## ----gr.fit, include = FALSE--------------------------------------------------
+gr.fit <- STR(data, predictors, confidence = 0.95, gap = 1, reltol = 0.00001) |>
+  cache("gr.fit.stR.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  gr.fit <- STR(data, predictors, confidence = 0.95, gap = 1, reltol = 0.00001)
-
-## ----fig.height=4-------------------------------------------------------------
+## ----gr.fit_plot, fig.height=4------------------------------------------------
 plot(gr.fit, xTime = times, forecastPanels = NULL)
 
-## ----echo=TRUE, warning=FALSE, results='hide'---------------------------------
+## ----season2, echo=TRUE, warning=FALSE, results='hide'------------------------
 season <- list(
   name = "Yearly seasonality",
   data = seasonData,
@@ -170,42 +154,29 @@ season <- list(
 )
 predictors <- list(trend, season)
 
-## ----include = FALSE----------------------------------------------------------
-f <- "gr.fit.2.stR.RDS"
-if (file.exists(f)) {
-  gr.fit <- readRDS(f)
-} else {
-  gr.fit <- STR(data,
-    predictors,
-    confidence = 0.95,
-    gap = 1,
-    reltol = 0.00001
-  )
-  saveRDS(gr.fit, f, compress = "xz")
-}
+## ----gr.fit2, include = FALSE-------------------------------------------------
+gr.fit <- STR(data,
+  predictors,
+  confidence = 0.95,
+  gap = 1,
+  reltol = 0.00001
+) |>
+  cache("gr.fit.2.stR.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  gr.fit <- STR(data,
-#    predictors,
-#    confidence = 0.95,
-#    gap = 1,
-#    reltol = 0.00001
-#  )
-
-## ----fig.height=4-------------------------------------------------------------
+## ----gr.fit2_plot, fig.height=4-----------------------------------------------
 plot(gr.fit, xTime = times, forecastPanels = NULL)
 
-## ----fig.height = 4-----------------------------------------------------------
+## ----spikes, fig.height = 4---------------------------------------------------
 outl <- rep(0, length(grocery))
 outl[14] <- 900
 outl[113] <- -700
 tsOutl <- ts(outl, start = c(2000, 1), frequency = 12)
 
-## -----------------------------------------------------------------------------
+## ----logGROutl----------------------------------------------------------------
 logGrOutl <- log(grocery + tsOutl)
 plot(logGrOutl, ylab = "Log turnover with outliers")
 
-## ----echo=TRUE, warning=FALSE, results='hide'---------------------------------
+## ----strspikes, echo=TRUE, warning=FALSE, results='hide'----------------------
 trendSeasonalStructure <- list(
   segments = list(c(0, 1)),
   sKnots = list(c(1, 0))
@@ -239,37 +210,31 @@ season <- list(
 )
 predictors <- list(trend, season)
 
-## ----include = FALSE----------------------------------------------------------
-f <- "logGrOutl.stR.RDS"
-if (file.exists(f)) {
-  fit.str <- readRDS(f)
-} else {
-  fit.str <- STR(as.vector(logGrOutl), predictors, confidence = 0.95, gapCV = 1, reltol = 0.001)
-  saveRDS(fit.str, f, compress = "xz")
-}
+## ----fit.str, include = FALSE-------------------------------------------------
+fit.str <- STR(
+  as.vector(logGrOutl),
+  predictors,
+  confidence = 0.95,
+  gapCV = 1,
+  reltol = 0.001
+) |>
+  cache("logGrOutl.stR.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  fit.str <- STR(as.vector(logGrOutl), predictors, confidence = 0.95, gapCV = 1, reltol = 0.001)
-
-## ----fig.height = 4-----------------------------------------------------------
+## ----fit.str_plot, fig.height = 4---------------------------------------------
 plot(fit.str, xTime = times, forecastPanels = NULL)
 
-## ----include = FALSE----------------------------------------------------------
-f <- "logGrOutl.stR.robust.RDS"
-if (file.exists(f)) {
-  fit.rstr <- readRDS(f)
-} else {
-  fit.rstr <- STR(as.vector(logGrOutl), predictors, confidence = 0.95, gapCV = 1, reltol = 0.001, nMCIter = 200, robust = TRUE)
-  saveRDS(fit.rstr, f, compress = "xz")
-}
+## ----fit.rstr, include = FALSE------------------------------------------------
+fit.rstr <- STR(
+  as.vector(logGrOutl),
+  predictors,
+  confidence = 0.95, gapCV = 1, reltol = 0.001, nMCIter = 200, robust = TRUE
+) |>
+  cache("logGrOutl.stR.robust.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  fit.rstr <- STR(as.vector(logGrOutl), predictors, confidence = 0.95, gapCV = 1, reltol = 0.001, nMCIter = 200, robust = TRUE)
-
-## ----fig.height = 4-----------------------------------------------------------
+## ----fit.rstr_plot, fig.height = 4--------------------------------------------
 plot(fit.rstr, xTime = times, forecastPanels = NULL)
 
-## ----echo=TRUE, warning=FALSE, results='hide'---------------------------------
+## ----calls, echo=TRUE, warning=FALSE, results='hide'--------------------------
 times <- as.vector(time(calls))
 timeKnots <- seq(min(times), max(times), length.out = 25)
 
@@ -326,33 +291,18 @@ seasonWeeks <- list(
 
 predictors <- list(trend, seasonDays, seasonWeeks)
 
-## ----include = FALSE----------------------------------------------------------
-f <- "calls.fit.RDS"
-if (file.exists(f)) {
-  calls.fit <- readRDS(f)
-} else {
-  calls.fit <- STR(
-    data = data,
-    predictors = predictors,
-    confidence = 0.95,
-    reltol = 0.003,
-    nFold = 4,
-    gap = 169
-  )
-  saveRDS(calls.fit, f, compress = "xz")
-}
+## ----calls.fit, include = FALSE-----------------------------------------------
+calls.fit <- STR(
+  data = data,
+  predictors = predictors,
+  confidence = 0.95,
+  reltol = 0.003,
+  nFold = 4,
+  gap = 169
+) |>
+  cache("calls.fit.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  calls.fit <- STR(
-#    data = data,
-#    predictors = predictors,
-#    confidence = 0.95,
-#    reltol = 0.003,
-#    nFold = 4,
-#    gap = 169
-#  )
-
-## ----fig.height = 4-----------------------------------------------------------
+## ----calls.fit_plot, fig.height = 4-------------------------------------------
 plot(calls.fit,
   xTime = as.Date("2003-03-03") +
     ((seq_along(data) - 1) / 169) +
@@ -360,7 +310,7 @@ plot(calls.fit,
   forecastPanels = NULL
 )
 
-## ----echo=TRUE, warning=FALSE, results='hide'---------------------------------
+## ----electricity, echo=TRUE, warning=FALSE, results='hide'--------------------
 TrendSeasonalStructure <- list(
   segments = list(c(0, 1)),
   sKnots = list(c(1, 0))
@@ -442,35 +392,22 @@ TrendTempM2 <- list(
 )
 Predictors <- list(Trend, WSeason, WDSeason, TrendTempM, TrendTempM2)
 
-## ----include = FALSE----------------------------------------------------------
-f <- "elec.fit.RDS"
-if (file.exists(f)) {
-  elec.fit <- readRDS(f)
-} else {
-  elec.fit <- STR(
-    data = Data,
-    predictors = Predictors,
-    confidence = 0.95,
-    gapCV = 48 * 7
-  )
-  saveRDS(elec.fit, f, compress = "xz")
-}
+## ----elec.fit, include = FALSE------------------------------------------------
+elec.fit <- STR(
+  data = Data,
+  predictors = Predictors,
+  confidence = 0.95,
+  gapCV = 48 * 7
+) |>
+  cache("elec.fit.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  elec.fit <- STR(
-#    data = Data,
-#    predictors = Predictors,
-#    confidence = 0.95,
-#    gapCV = 48 * 7
-#  )
-
-## ----fig.height = 6-----------------------------------------------------------
+## ----elec.fit_plot, fig.height = 6--------------------------------------------
 plot(elec.fit,
   xTime = as.Date("2000-01-11") + ((Times - 1) / 48 - 10),
   forecastPanels = NULL
 )
 
-## ----echo=TRUE, warning=FALSE, results='hide'---------------------------------
+## ----forecasting, echo=TRUE, warning=FALSE, results='hide'--------------------
 TrendSeasonalStructure <- list(
   segments = list(c(0, 1)),
   sKnots = list(c(1, 0))
@@ -552,49 +489,36 @@ TrendTempM2 <- list(
 )
 Predictors <- list(Trend, WSeason, WDSeason, TrendTempM, TrendTempM2)
 
-## ----echo=TRUE, warning=FALSE, results='hide'---------------------------------
+## ----nas, echo=TRUE, warning=FALSE, results='hide'----------------------------
 Data[(length(Data) - 7 * 48):length(Data)] <- NA
 
-## ----include = FALSE----------------------------------------------------------
-f <- "elec.fit.forecasting.RDS"
-if (file.exists(f)) {
-  elec.fit <- readRDS(f)
-} else {
-  elec.fit <- STR(
-    data = Data,
-    predictors = Predictors,
-    confidence = 0.95,
-    gapCV = 48 * 7
-  )
-  saveRDS(elec.fit, f, compress = "xz")
-}
+## ----elec.fit2, include = FALSE-----------------------------------------------
+elec.fit <- STR(
+  data = Data,
+  predictors = Predictors,
+  confidence = 0.95,
+  gapCV = 48 * 7
+) |>
+  cache("elec.fit.forecasting.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  elec.fit <- STR(
-#    data = Data,
-#    predictors = Predictors,
-#    confidence = 0.95,
-#    gapCV = 48 * 7
-#  )
-
-## ----fig.height = 7.5---------------------------------------------------------
+## ----elec.fit2_plot, fig.height = 7.5-----------------------------------------
 plot(elec.fit,
   xTime = as.Date("2000-01-11") + ((Times - 1) / 48 - 10),
   forecastPanels = 7
 )
 
-## ----fig.height = 4.5---------------------------------------------------------
+## ----plotBeta, fig.height = 4.5-----------------------------------------------
 plotBeta(elec.fit, predictorN = 1)
 
-## ----fig.height = 4.5---------------------------------------------------------
+## ----plotBeta2, fig.height = 4.5----------------------------------------------
 plotBeta(elec.fit, predictorN = 2)
 plotBeta(elec.fit, predictorN = 3)
 
-## ----fig.height = 4.5---------------------------------------------------------
+## ----plotBeta3, fig.height = 4.5----------------------------------------------
 plotBeta(elec.fit, predictorN = 4)
 plotBeta(elec.fit, predictorN = 5)
 
-## ----echo=TRUE, warning=FALSE, results='hide'---------------------------------
+## ----higher_lambda, echo=TRUE, warning=FALSE, results='hide'------------------
 Trend <- list(
   name = "Trend",
   data = TrendData,
@@ -606,35 +530,22 @@ Trend <- list(
 )
 Predictors <- list(Trend, WSeason, WDSeason, TrendTempM, TrendTempM2)
 
-## ----include = FALSE----------------------------------------------------------
-f <- "elec.fit.2.forecasting.RDS"
-if (file.exists(f)) {
-  elec.fit.2 <- readRDS(f)
-} else {
-  elec.fit.2 <- STR(
-    data = Data,
-    predictors = Predictors,
-    confidence = 0.95,
-    gapCV = 48 * 7
-  )
-  saveRDS(elec.fit.2, f, compress = "xz")
-}
+## ----elec.fit3, include = FALSE-----------------------------------------------
+elec.fit.2 <- STR(
+  data = Data,
+  predictors = Predictors,
+  confidence = 0.95,
+  gapCV = 48 * 7
+) |>
+  cache("elec.fit.2.forecasting.RDS")
 
-## ----eval = FALSE-------------------------------------------------------------
-#  elec.fit.2 <- STR(
-#    data = Data,
-#    predictors = Predictors,
-#    confidence = 0.95,
-#    gapCV = 48 * 7
-#  )
-
-## ----fig.height = 7.5---------------------------------------------------------
+## ----elec.fig3_plot, fig.height = 7.5-----------------------------------------
 plot(elec.fit.2,
   xTime = as.Date("2000-01-11") + ((Times - 1) / 48 - 10),
   forecastPanels = 7
 )
 
-## ----fig.height = 4.5---------------------------------------------------------
+## ----betas, fig.height = 4.5--------------------------------------------------
 for (i in 1:5) {
   plotBeta(elec.fit.2, predictorN = i)
 }

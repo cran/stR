@@ -93,7 +93,7 @@ and method to solve the minimisation problem during STR decompositon.}
 
 \item{ratioGap}{Ratio to define hyperparameter bounds for one-dimensional search.}
 
-\item{relCV}{Minimum improvement required after all predictors tried. It is used to exit heuristic serach of lambda parameters.}
+\item{relCV}{Minimum improvement required after all predictors tried. It is used to exit heuristic search of lambda parameters.}
 }
 \value{
 A structure containing input and output data.

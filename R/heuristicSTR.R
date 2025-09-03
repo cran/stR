@@ -19,14 +19,41 @@
 #' @inheritParams solver
 #' @inheritParams trace
 #' @param ratioGap Ratio to define hyperparameter bounds for one-dimensional search.
-#' @param relCV Minimum improvement required after all predictors tried. It is used to exit heuristic serach of lambda parameters.
-#' @templateVar class STR
-#' @templateVar topLevel1 \item \strong{cvMSE} -- optional cross validated (leave one out) Mean Squared Error.
-#' @templateVar topLevel2 \item \strong{optim.CV.MSE} or \strong{optim.CV.MAE} -- best cross validated Mean Squared Error or Mean Absolute Error (n-fold) achieved during minimisation procedure.
-#' @templateVar topLevel3 \item \strong{nFold} -- the input \code{nFold} parameter.
-#' @templateVar topLevel4 \item \strong{gapCV} -- the input \code{gapCV} parameter.
-#' @templateVar topLevel5 \item \strong{method} -- contains strings \code{"STR"} or \code{"RSTR"} depending on used method.
-#' @template returnValue
+#' @param relCV Minimum improvement required after all predictors tried. It is used to exit heuristic search of lambda parameters.
+#' @return A structure containing input and output data.
+#' It is an \strong{S3} class \code{STR}, which is a list with the following components:
+#' \itemize{
+#' \item \strong{output} -- contains decomposed data. It is a list of three components:
+#' \itemize{
+#' \item \strong{predictors} -- a list of components where each component
+#' corresponds to the input predictor. Every such component is a list containing the following:
+#' \itemize{
+#' \item \strong{data} -- fit/forecast for the corresponding predictor (trend, seasonal component, flexible or seasonal predictor).
+#' \item \strong{beta} -- beta coefficients of the fit of the coresponding predictor.
+#' \item \strong{lower} -- optional (if requested) matrix of lower bounds of confidence intervals.
+#' \item \strong{upper} -- optional (if requested) matrix of upper bounds of confidence intervals.
+#' }
+#' \item \strong{random} -- a list with one component \strong{data}, which contains residuals of the model fit.
+#' \item \strong{forecast} -- a list with two components:
+#' \itemize{
+#' \item \strong{data} -- fit/forecast for the model.
+#' \item \strong{beta} -- beta coefficients of the fit.
+#' \item \strong{lower} -- optional (if requested) matrix of lower bounds of confidence intervals.
+#' \item \strong{upper} -- optional (if requested) matrix of upper bounds of confidence intervals.
+#' }
+#' }
+#' \item \strong{input} -- input parameters and lambdas used for final calculations.
+#' \itemize{
+#' \item \strong{data} -- input data.
+#' \item \strong{predictors} - input predictors.
+#' \item \strong{lambdas} -- smoothing parameters used for final calculations (same as input lambdas for STR method).
+#' }
+#' \item \strong{cvMSE} -- optional cross validated (leave one out) Mean Squared Error.
+#' \item \strong{optim.CV.MSE} or \strong{optim.CV.MAE} -- best cross validated Mean Squared Error or Mean Absolute Error (n-fold) achieved during minimisation procedure.
+#' \item \strong{nFold} -- the input \code{nFold} parameter.
+#' \item \strong{gapCV} -- the input \code{gapCV} parameter.
+#' \item \strong{method} -- contains strings \code{"STR"} or \code{"RSTR"} depending on used method.
+#' }
 #' @examples
 #' \donttest{
 #' TrendSeasonalStructure <- list(
@@ -205,41 +232,65 @@
 #' \url{https://robjhyndman.com/publications/str/}
 #' @export
 
-heuristicSTR <- function(data, predictors,
-                         confidence = NULL, lambdas = NULL,
-                         pattern = extractPattern(predictors), nFold = 5, reltol = 0.005, gapCV = 1,
-                         solver = c("Matrix", "cholesky"),
-                         trace = FALSE,
-                         ratioGap = 1e12, # Ratio to define bounds for one-dimensional search.
-                         relCV = 0.01 # Minimum improvement required after all predictors tried. It is used to exit.
+heuristicSTR <- function(
+  data,
+  predictors,
+  confidence = NULL,
+  lambdas = NULL,
+  pattern = extractPattern(predictors),
+  nFold = 5,
+  reltol = 0.005,
+  gapCV = 1,
+  solver = c("Matrix", "cholesky"),
+  trace = FALSE,
+  ratioGap = 1e12, # Ratio to define bounds for one-dimensional search.
+  relCV = 0.01 # Minimum improvement required after all predictors tried. It is used to exit.
 ) {
   lambdas <- upLambdas(
-    data = data, predictors = predictors,
-    confidence = confidence, lambdas = lambdas,
-    pattern = pattern, nFold = nFold,
-    reltol = reltol, gapCV = gapCV,
-    solver = solver, trace = trace, ratioGap = ratioGap
+    data = data,
+    predictors = predictors,
+    confidence = confidence,
+    lambdas = lambdas,
+    pattern = pattern,
+    nFold = nFold,
+    reltol = reltol,
+    gapCV = gapCV,
+    solver = solver,
+    trace = trace,
+    ratioGap = ratioGap
   )
   result <- STR(
-    data = data, predictors = predictors,
-    confidence = confidence, lambdas = lambdas,
-    pattern = pattern, nFold = nFold,
-    reltol = reltol, gapCV = gapCV,
-    solver = solver, trace = trace
+    data = data,
+    predictors = predictors,
+    confidence = confidence,
+    lambdas = lambdas,
+    pattern = pattern,
+    nFold = nFold,
+    reltol = reltol,
+    gapCV = gapCV,
+    solver = solver,
+    trace = trace
   )
   return(result)
 }
 
 # Tries to find optimal lambda parameters optimising them in groups (one group per predictor), over
 # the residuals and allowing only to increase L1 norm of the group of the parameters
-upLambdas <- function(data, predictors,
-                      confidence = NULL, lambdas = NULL,
-                      pattern = extractPattern(predictors), nFold = 5, reltol = 0.005, gapCV = 1,
-                      solver = c("Matrix", "cholesky"),
-                      trace = FALSE,
-                      ratioGap = 1e6, # Ratio to define bounds for one-dimensional search
-                      nPasses = 2,
-                      maxLambda = 1e6) {
+upLambdas <- function(
+  data,
+  predictors,
+  confidence = NULL,
+  lambdas = NULL,
+  pattern = extractPattern(predictors),
+  nFold = 5,
+  reltol = 0.005,
+  gapCV = 1,
+  solver = c("Matrix", "cholesky"),
+  trace = FALSE,
+  ratioGap = 1e6, # Ratio to define bounds for one-dimensional search
+  nPasses = 2,
+  maxLambda = 1e6
+) {
   if (is.null(lambdas)) {
     lambdas <- lapply(predictors, FUN = function(p) list(lambdas = p$lambdas))
   } else {
@@ -250,10 +301,18 @@ upLambdas <- function(data, predictors,
   if (nFold * gapCV > lData) {
     stop(paste0(
       "nFold*gapCV should be less or equal to the data length.\nnFold = ",
-      nFold, "\ngapCV = ", gapCV, "\nlength of the data = ", lData
+      nFold,
+      "\ngapCV = ",
+      gapCV,
+      "\nlength of the data = ",
+      lData
     ))
   }
-  subInds <- lapply(1:nFold, FUN = function(i) sort(unlist(lapply(1:gapCV, FUN = function(j) seq(from = (i - 1) * gapCV + j, to = lData, by = nFold * gapCV)))))
+  subInds <- lapply(1:nFold, FUN = function(i) {
+    sort(unlist(lapply(1:gapCV, FUN = function(j) {
+      seq(from = (i - 1) * gapCV + j, to = lData, by = nFold * gapCV)
+    })))
+  })
   complInds <- lapply(subInds, FUN = function(s) setdiff(1:lData, s))
 
   strDesign <- STRDesign(predictors)
@@ -276,16 +335,29 @@ upLambdas <- function(data, predictors,
   oldLambdas <- oldFit <- fit <- NULL
   for (j in seq_len(nPasses)) {
     for (i in seq_along(predictors)) {
-      if (sum(abs(newLambdas[[i]]$lambdas)) == 0) next
+      if (sum(abs(newLambdas[[i]]$lambdas)) == 0) {
+        next
+      }
       if (trace) {
         cat("\nPredictor: ")
         cat(i)
         cat("\n")
       }
       if (is.null(fit)) {
-        fit <- try(STRmodel(data, strDesign = strDesign, lambdas = newLambdas, confidence = NULL, trace = F), silent = !trace)
+        fit <- try(
+          STRmodel(
+            data,
+            strDesign = strDesign,
+            lambdas = newLambdas,
+            confidence = NULL,
+            trace = F
+          ),
+          silent = !trace
+        )
         if ("try-error" %in% class(fit)) {
-          if (trace) cat("\nError in STRmodel. Reverting lambda coefficients.")
+          if (trace) {
+            cat("\nError in STRmodel. Reverting lambda coefficients.")
+          }
           fit <- oldFit
           newLambdas <- oldLambdas
         }
@@ -313,7 +385,10 @@ upLambdas <- function(data, predictors,
       } else {
         oldLambdas <- newLambdas
         oldFit <- fit
-        newLambdas[[i]]$lambdas <- pmin(fit_$input$lambdas[[1]]$lambdas, maxLambda)
+        newLambdas[[i]]$lambdas <- pmin(
+          fit_$input$lambdas[[1]]$lambdas,
+          maxLambda
+        )
         fit <- NULL
         if (trace) {
           dummy <- lapply(newLambdas, FUN = function(p) {

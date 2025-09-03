@@ -1,6 +1,6 @@
 Package: stR
 Title: Seasonal Trend Decomposition Using Regression
-Version: 0.7
+Version: 0.7.1
 Description: Methods for decomposing seasonal data: STR (a Seasonal-Trend 
   time series decomposition procedure based on Regression) and Robust STR. In 
   some ways, STR is similar to Ridge Regression and Robust STR can be related to 
@@ -29,9 +29,10 @@ Config/testthat/edition: 3
 RoxygenNote: 7.3.2
 VignetteBuilder: knitr
 NeedsCompilation: no
-Packaged: 2024-07-28 05:56:50 UTC; hyndman
-Author: Alexander Dokumentov [aut] (<https://orcid.org/0000-0003-0478-0983>),
-  Rob Hyndman [aut, cre] (<https://orcid.org/0000-0002-2140-5352>)
+Packaged: 2025-09-02 23:18:59 UTC; hyndman
+Author: Alexander Dokumentov [aut] (ORCID:
+    <https://orcid.org/0000-0003-0478-0983>),
+  Rob Hyndman [aut, cre] (ORCID: <https://orcid.org/0000-0002-2140-5352>)
 Maintainer: Rob Hyndman <Rob.Hyndman@monash.edu>
 Repository: CRAN
-Date/Publication: 2024-07-28 13:30:01 UTC
+Date/Publication: 2025-09-03 00:20:08 UTC
